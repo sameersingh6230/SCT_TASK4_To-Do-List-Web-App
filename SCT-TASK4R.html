@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TaskMaster Supreme</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <style>
+    body {
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .task-card {
+      background-color: var(--card-bg, white);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .completed {
+      text-decoration: line-through;
+      color: #6c757d;
+    }
+    .task-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      cursor: grab;
+    }
+    .task-meta {
+      font-size: 0.85rem;
+      color: #888;
+    }
+    .task-buttons button {
+      margin-left: 5px;
+    }
+
+    /* Dark Mode */
+    body.dark {
+      background-color: #121212;
+      color: #e0e0e0;
+    }
+    body.dark .task-card {
+      background-color: #1e1e1e;
+    }
+    body.dark .form-control,
+    body.dark .form-select {
+      background-color: #2c2c2c;
+      color: #e0e0e0;
+      border-color: #444;
+    }
+
+    .filter-bar select {
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="text-center flex-grow-1">📝 TaskMaster Supreme</h1>
+    <button class="btn btn-outline-secondary" onclick="toggleDarkMode()">🌙</button>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="d-flex justify-content-center filter-bar mb-3">
+    <select id="filterPriority" class="form-select w-auto" onchange="applyFilters()">
+      <option value="">All Priorities</option>
+      <option value="High">High</option>
+      <option value="Medium">Medium</option>
+      <option value="Low">Low</option>
+    </select>
+    <select id="filterCategory" class="form-select w-auto" onchange="applyFilters()">
+      <option value="">All Categories</option>
+      <option value="General">General</option>
+      <option value="Work">Work</option>
+      <option value="Study">Study</option>
+      <option value="Personal">Personal</option>
+    </select>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="task-card">
+        <div class="row g-2 mb-3">
+          <div class="col-md-5">
+            <input type="text" id="taskInput" class="form-control" placeholder="Enter a new task..." />
+          </div>
+          <div class="col-md-3">
+            <input type="date" id="dueDate" class="form-control" />
+          </div>
+          <div class="col-md-2">
+            <select id="priority" class="form-select">
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <select id="category" class="form-select">
+              <option value="General">General</option>
+              <option value="Work">Work</option>
+              <option value="Study">Study</option>
+              <option value="Personal">Personal</option>
+            </select>
+          </div>
+        </div>
+        <div class="d-grid mb-3">
+          <button class="btn btn-primary" onclick="addTask()">Add Task</button>
+        </div>
+        <ul class="list-group" id="taskList"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const taskList = document.getElementById("taskList");
+
+  function toggleDarkMode() {
+    document.body.classList.toggle("dark");
+  }
+
+  function addTask() {
+    const taskInput = document.getElementById("taskInput");
+    const dueDate = document.getElementById("dueDate").value;
+    const priority = document.getElementById("priority").value;
+    const category = document.getElementById("category").value;
+
+    const taskText = taskInput.value.trim();
+    if (taskText === "") {
+      alert("Please enter a task.");
+      return;
+    }
+
+    const listItem = createTaskElement(taskText, dueDate, priority, category);
+    taskList.appendChild(listItem);
+
+    taskInput.value = "";
+    document.getElementById("dueDate").value = "";
+    document.getElementById("priority").value = "Medium";
+    document.getElementById("category").value = "General";
+  }
+
+  function createTaskElement(taskText, dueDate, priority, category) {
+    const listItem = document.createElement("li");
+    listItem.className = "list-group-item task-item";
+    listItem.draggable = true;
+    listItem.dataset.priority = priority;
+    listItem.dataset.category = category;
+
+    listItem.addEventListener("dragstart", dragStart);
+    listItem.addEventListener("dragover", dragOver);
+    listItem.addEventListener("drop", drop);
+
+    const leftBlock = document.createElement("div");
+    leftBlock.className = "flex-grow-1";
+
+    const taskTitle = document.createElement("span");
+    taskTitle.textContent = taskText;
+
+    const countdown = document.createElement("span");
+    countdown.className = "ms-2 text-danger small";
+    if (dueDate) {
+      countdown.dataset.due = dueDate;
+      updateCountdown(countdown);
+      setInterval(() => updateCountdown(countdown), 60000); // Update every minute
+    }
+
+    const taskMeta = document.createElement("div");
+    taskMeta.className = "task-meta";
+    taskMeta.innerHTML = `📅 ${dueDate || 'No due date'} | 🔺 ${priority} | 🗂️ ${category}`;
+
+    leftBlock.appendChild(taskTitle);
+    leftBlock.appendChild(countdown);
+    leftBlock.appendChild(taskMeta);
+
+    const buttonGroup = document.createElement("div");
+    buttonGroup.className = "task-buttons";
+
+    const doneBtn = document.createElement("button");
+    doneBtn.className = "btn btn-success btn-sm";
+    doneBtn.textContent = "✔";
+    doneBtn.onclick = () => {
+      taskTitle.classList.toggle("completed");
+    };
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "btn btn-danger btn-sm";
+    delBtn.textContent = "✖";
+    delBtn.onclick = () => {
+      listItem.remove();
+    };
+
+    buttonGroup.appendChild(doneBtn);
+    buttonGroup.appendChild(delBtn);
+
+    listItem.appendChild(leftBlock);
+    listItem.appendChild(buttonGroup);
+
+    return listItem;
+  }
+
+  function updateCountdown(span) {
+    const dueDate = new Date(span.dataset.due);
+    const now = new Date();
+    const diff = dueDate - now;
+    if (diff <= 0) {
+      span.textContent = " (Overdue)";
+      span.classList.add("text-warning");
+    } else {
+      const hours = Math.floor(diff / 36e5);
+      const minutes = Math.floor((diff % 36e5) / 60000);
+      span.textContent = ` (${hours}h ${minutes}m left)`;
+    }
+  }
+
+  function applyFilters() {
+    const priority = document.getElementById("filterPriority").value;
+    const category = document.getElementById("filterCategory").value;
+
+    const tasks = taskList.children;
+    for (let task of tasks) {
+      const matchPriority = !priority || task.dataset.priority === priority;
+      const matchCategory = !category || task.dataset.category === category;
+      task.style.display = matchPriority && matchCategory ? "flex" : "none";
+    }
+  }
+
+  // Drag and drop logic
+  let dragSrcEl = null;
+
+  function dragStart(e) {
+    dragSrcEl = this;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.outerHTML);
+    this.classList.add("dragging");
+  }
+
+  function dragOver(e) {
+    e.preventDefault();
+    this.classList.add("drag-over");
+  }
+
+  function drop(e) {
+    e.preventDefault();
+    if (dragSrcEl !== this) {
+      this.parentNode.removeChild(dragSrcEl);
+      const dropHTML = e.dataTransfer.getData('text/html');
+      this.insertAdjacentHTML('beforebegin', dropHTML);
+      const dropped = this.previousSibling;
+      dropped.addEventListener("dragstart", dragStart);
+      dropped.addEventListener("dragover", dragOver);
+      dropped.addEventListener("drop", drop);
+    }
+    this.classList.remove("drag-over");
+  }
+</script>
+
+</body>
+</html>
